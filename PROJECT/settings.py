@@ -14,7 +14,8 @@ import os
 import logging
 # Build paths inside the project like this: os.path.join(BASE_DIR, ...)
 BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-
+# import django
+# django.setup()
 
 # Quick-start development settings - unsuitable for production
 # See https://docs.djangoproject.com/en/2.2/howto/deployment/checklist/
@@ -26,7 +27,7 @@ SECRET_KEY = '_k091si(bm@c$^rka3008*y&!ay(+(vv$bmb3r^2yy&a%b5y1w'
 
 DEBUG = True
 
-ALLOWED_HOSTS = ["143.244.141.118", '127.0.0.1', 'localhost', "*"]
+ALLOWED_HOSTS = ["143.110.241.49", '127.0.0.1', 'localhost', "*"]
 
 
 # Application definition
@@ -58,6 +59,7 @@ MIDDLEWARE = [
 ROOT_URLCONF = 'PROJECT.urls'
 
 TEMPLATES = [
+
     {
         'BACKEND': 'django.template.backends.django.DjangoTemplates',
         'DIRS': [],

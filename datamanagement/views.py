@@ -1,14 +1,21 @@
 
-from django.shortcuts import render
+from django.shortcuts import render,redirect
+from django.contrib.auth import authenticate,  login, logout
+from django.contrib.auth.decorators import login_required
+from django.contrib import messages
+from django.http import JsonResponse
+
+
 from .helpful_scripts.strategy import *
 from .helpful_scripts.background_functions import *
-# Create your views here.
-from django.contrib import messages
-import threading
+from .models import *
 
+import threading
 import random
 import string
-from .models import positions, orders
+import json
+import certifi
+import ast
 
 import logging
 logging.getLogger("pymongo").setLevel(logging.WARNING)
@@ -16,100 +23,115 @@ logging.getLogger("urllib3").setLevel(logging.WARNING)
 logger = logging.getLogger('dev_log')
 error = logging.getLogger('error_log')
 
+from pymongo.mongo_client import MongoClient
+from pymongo.server_api import ServerApi
+data={}
+with open("datamanagement/helpful_scripts/background.json") as json_file:
+    data=json.load(json_file)
+
+client = MongoClient(data['mongo_uri'], server_api=ServerApi('1'),connect=False,tlsCAFile=certifi.where())
+database=client[data['database']]
+admin=database['admin']
+position=database['position']
+current_candles=database['candles']
 
 
+def login_page(request):
+    return render(request, "login.html")
 
+def handleLogin(request):
 
-def index(request):
-    logger.info("we have started logging... hurray!!")
-    return render(request, "index.html")
-
-
-def position(request):
-
-    strategies = strategy.objects.filter(status="OPEN")
-    lists = []
-    strategy_id = []
-
-    for i in range(len(strategies)):
-
-        position = positions.objects.filter(
-            strategy_id=strategies[i].strategy_id)
-        position_list = []
-        for j in range(len(position)):
-            position_list.append(position[j])
-
-
-
-        lists.append(position_list)
-        strategy_id.append(strategies[i].strategy_id)
-
-    return render(request, "position.html",    {
-        'list': lists,
-        'strategy_id': strategy_id
-    })
-
-
-def start_strategy(request):
-
+    if request.user.is_authenticated:
+        return redirect('/start_strategy')
     if request.method == "POST":
 
-        buy_factor = request.POST['buy_factor']
-        per_premium = request.POST['per_premium']
-        TP1 = request.POST['TP1']
-        TP2 = request.POST['TP2']
-        timeout = request.POST['timeout']
-        sell_factor = request.POST['sell_factor']
-        lot = request.POST['lot']
-        et = request.POST['et']
+        loginusername = request.POST['username']
+        loginpassword = request.POST['password']
+        # user = authenticate(username=loginusername, password=loginpassword)
+        if loginusername=="bybit_bot" and loginpassword=="bot_to_trade":
+            user=User.objects.get(username=loginusername)
+            login(request, user)
+            return redirect("../start_strategy/")
+        else:
+            messages.error(request, "Invalid credentials! Please try again")
+            return redirect("/")
+    return redirect("/")
 
-        try:
-            type = str(request.POST['type'])
+@login_required(login_url='')
+def handleLogout(request):
+    logout(request)
+    return redirect('/')
 
-        except:
-            type = 'off'
+@login_required(login_url='')
+def rest_update(request):
+    data={}
+    data['admin']=admin.find_one()
+    positions=list(position.find())
+    data['candles_data']=current_candles.find_one()['data']
+    if data['admin']:
+        data['admin']['_id'] = str(data['admin']['_id'])
+    for pos in positions:
+        pos['_id'] = str(pos['_id'])
+    data['present_positions']=[]
+    data['closed_positions']=[]
 
-        rand_str = random_string_generator(10, string.ascii_letters)
-        # obj.ltpData("NSE", 'NIFTY', "26000")['data']['ltp']
-        user = User1.objects.get(username='testing')
+    for pos in positions:
+        if(pos['status']=="OPEN"):
+            data['present_positions'].append(pos)
+        else:
+            data['closed_positions'].append(pos)
 
-        strategy1 = strategy(
+    return JsonResponse(data)
 
-            strategy_id=rand_str,
-            buy_factor=buy_factor,
-            sell_factor=sell_factor,
-            percentage_premium=per_premium,
-            TP1=TP1,
-            TP2=TP2,
-            time_out=timeout,
-            LIMIT=type,
-            lot=lot,
-            status="OPEN",
-            ET=et,
-            working_days_1=user.working_days_1,
-            working_days_2=user.working_days_2,
-            expiry_1=user.expiry_1,
-            expiry_2=user.expiry_2,
-            T_now=3
+@login_required(login_url='')
+def start_strategy(request):
+    data={}
+    data['admin']=admin.find_one()
+    positions=list(position.find())
+    data['present_positions']=[]
+    data['closed_positions']=[]
 
-        )
+    for pos in positions:
+        if(pos['status']=="OPEN"):
+            data['present_positions'].append(pos)
+        else:
+            data['closed_positions'].append(pos)
 
-        strategy1.save()
+    if request.method == "POST":
+        recieved_data=request.POST
+        recieved_data=recieved_data.copy()
 
-        strategy1 = strategy.objects.get(strategy_id=rand_str)
+        if('status' not in recieved_data):
+            recieved_data['status']='off'
+        if('live' not in recieved_data):
+            recieved_data['live']='off'
+
+        params={
+            "api_key":recieved_data['api_key'],
+            "secret_key":recieved_data['secret_key'],
+            "investment":float(recieved_data['investment']),
+            "symbols":ast.literal_eval(recieved_data['symbols']),
+            "status":True if recieved_data['status']=='on' else False,
+            "live":True if recieved_data['live']=='on' else False,
+            "EMA_1_period":int(recieved_data['EMA_1_period']),
+            "EMA_2_period":int(recieved_data['EMA_2_period']),
+            "time_frame":recieved_data['time_frame'],
+            "stoploss":float(recieved_data['stoploss']),
+            "takeprofit":float(recieved_data['takeprofit'])
+        }
+        admin.update_one({},{"$set":params})
+        print(params)
+        data['admin']=admin.find_one()
+        positions=list(position.find())
+
+        return render(request, "index.html",data)
+    return render(request, "index.html",data)
 
 
-        t = threading.Thread(target=do_something, args=[strategy1])
-        t.setDaemon(True)
-        t.start()
-        
-
-        return render(request, "index.html")
-
-    return render(request, "index.html")
-
-def do_something(strategy):
-    strat = run_strategy(strategy)
+def do_something():
+    logger.info("LOGGING STARTED")
+    strat = run_strategy()
     value=strat.run()
 
-
+t=threading.Thread(target=do_something)
+t.start()
