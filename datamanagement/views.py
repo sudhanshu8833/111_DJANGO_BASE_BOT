@@ -7,12 +7,9 @@ from django.http import JsonResponse
 
 
 from .helpful_scripts.strategy import *
-from .helpful_scripts.background_functions import *
 from .models import *
 
 import threading
-import random
-import string
 import json
 import certifi
 import ast
@@ -26,7 +23,7 @@ error = logging.getLogger('error_log')
 from pymongo.mongo_client import MongoClient
 from pymongo.server_api import ServerApi
 data={}
-with open("datamanagement/helpful_scripts/background.json") as json_file:
+with open("background.json") as json_file:
     data=json.load(json_file)
 
 client = MongoClient(data['mongo_uri'], server_api=ServerApi('1'),connect=False,tlsCAFile=certifi.where())
@@ -47,7 +44,6 @@ def handleLogin(request):
 
         loginusername = request.POST['username']
         loginpassword = request.POST['password']
-        # user = authenticate(username=loginusername, password=loginpassword)
         if loginusername=="bybit_bot" and loginpassword=="bot_to_trade":
             user=User.objects.get(username=loginusername)
             login(request, user)
@@ -132,6 +128,7 @@ def do_something():
     logger.info("LOGGING STARTED")
     strat = run_strategy()
     value=strat.run()
+
 
 t=threading.Thread(target=do_something)
 t.start()

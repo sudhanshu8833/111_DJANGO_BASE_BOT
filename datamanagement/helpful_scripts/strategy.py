@@ -5,11 +5,8 @@ from datetime import datetime
 import logging
 import json
 import certifi
-from finta import TA
-import ccxt
 
 from datamanagement.models import *
-from datamanagement.helpful_scripts.background_functions import *
 
 
 
@@ -22,14 +19,13 @@ error = logging.getLogger('error_log')
 from pymongo.mongo_client import MongoClient
 from pymongo.server_api import ServerApi
 data={}
-with open("datamanagement/helpful_scripts/background.json") as json_file:
+with open("background.json") as json_file:
     data=json.load(json_file)
 client = MongoClient(data['mongo_uri'], server_api=ServerApi('1'),connect=False,tlsCAFile=certifi.where())
 database=client[data['database']]
 admin=database['admin']
 position=database['position']
 current_candles=database['candles']
-current_candles.insert_one({'data':[]})
 
 '''
 # ADMIN
@@ -77,11 +73,8 @@ class run_strategy():
         self.prices={}
 
     def login(self):
-        self.client=ccxt.bybit({
-            'apiKey':self.admin['api_key'],
-            "secret":self.admin['secret_key'],
-            'enableRateLimit': True
-        })
+        pass
+        #LOGIN HERE
 
     def update_candles(self,df):
         data_structure = [
@@ -92,13 +85,13 @@ class run_strategy():
                 "low": row['low'],
                 "close": row['close'],
                 "volume": row['volume'],
-                "EMA1": row['EMA1'],
-                "EMA2": row['EMA2']
+               # INDICATOR LINE SERIES
             }
             for index, row in df.iterrows()
         ]
         data_structure={"data":data_structure}
         current_candles.update_one({},{"$set":data_structure})
+
 
     def download_ohlc(self,instrument):
         data=self.client.fetch_ohlcv(instrument,timeframe=self.admin['time_frame'])
@@ -106,8 +99,8 @@ class run_strategy():
         df.index=df['Datetime']
         df.drop(columns=['Datetime'],inplace=True)
         df = df.apply(pd.to_numeric)
-        df['EMA1']=TA.EMA(df,self.admin['EMA_1_period'])
-        df['EMA2']=TA.EMA(df,self.admin['EMA_2_period'])
+
+        # APPLY INDICATORS LINE SERIES
         self.prices[instrument]=df['close'].iloc[-1]
         self.update_candles(df)
         return df[:-1]
@@ -117,15 +110,8 @@ class run_strategy():
         price=self.prices[instrument]
 
         takeprofit,stoploss=[0,0]
-        if(type=="buy"):
-            takeprofit=price*(1+(self.admin['takeprofit'])/100.0)
-            stoploss=price*(1-(self.admin['stoploss'])/100.0)
-            type="LONG"
 
-        elif(type=="sell"):
-            takeprofit=price*(1-(self.admin['takeprofit'])/100.0)
-            stoploss=price*(1+(self.admin['stoploss'])/100.0)
-            type="SHORT"
+        # APPLY LOGIC FOR TAKEPROFTIS AND STOPLOSS, IF APPLICABLE
 
         pos={
             "symbol":instrument,
@@ -149,19 +135,8 @@ class run_strategy():
     def create_order(self,params):
 
         try:
-            if(params['status']=="OPEN"):
-                if(params['type']=='LONG'):
-                    self.client.create_order(params['symbol'],'market','buy',params['quantity'],self.prices[params['symbol']])
-                else:
-                    self.client.create_market_sell_order(params['symbol'],self.admin['investment'])
-
-            if(params['status']=="CLOSED"):
-                if(params['type']=='SHORT'):
-                    self.client.create_order(params['symbol'],'market','buy',params['quantity'],self.prices[params['symbol']])
-
-                else:
-                    base=params['symbol'].split('/')[0]
-                    self.client.create_market_sell_order(params['symbol'],self.balance[base])
+            pass
+            # create LIVE ORDERS
 
         except Exception:
             error.info(str(traceback.format_exc()))
@@ -170,13 +145,8 @@ class run_strategy():
 
     def signals(self,instrument,df):
         if(instrument not in self.positions or self.positions[instrument]==False):
-            if(df['EMA1'].iloc[-1]<df['EMA2'].iloc[-1] and df['EMA1'].iloc[-2]>df['EMA2'].iloc[-2]):
-                self.positions[instrument]=True
-                return 'buy'
-
-            elif(df['EMA1'].iloc[-1]>df['EMA2'].iloc[-1] and df['EMA1'].iloc[-2]<df['EMA2'].iloc[-2]):
-                self.positions[instrument]=True
-                return 'sell'
+            pass
+            #RETURN "buy/sell"
 
         return "NA"
     
@@ -231,7 +201,6 @@ class run_strategy():
             while True:
                 if(self.admin['status']):
                     self.admin=admin.find_one()
-                    self.balance=self.client.fetch_free_balance()
                     self.main()
                 else:
                     time.sleep(60)
