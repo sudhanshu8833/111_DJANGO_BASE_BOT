@@ -29,7 +29,9 @@ current_candles=database['candles']
 
 '''
 # ADMIN
-{   "username":"",
+
+{
+    "username":"",
     "password":"",
     "api_key":"",
     "secret_key":"",

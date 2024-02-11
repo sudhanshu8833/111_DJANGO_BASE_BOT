@@ -53,6 +53,15 @@ def handleLogin(request):
             return redirect("/")
     return redirect("/")
 
+def round_off(positions):
+
+    for obj in positions:
+        for key in obj:
+            if isinstance(obj[key], float):
+                obj[key] = round(obj[key], 3)
+
+    return positions
+
 @login_required(login_url='')
 def handleLogout(request):
     logout(request)
@@ -63,6 +72,7 @@ def rest_update(request):
     data={}
     data['admin']=admin.find_one()
     positions=list(position.find())
+    positions=round_off(positions)
     data['candles_data']=current_candles.find_one()['data']
     if data['admin']:
         data['admin']['_id'] = str(data['admin']['_id'])
@@ -128,6 +138,9 @@ def do_something():
     logger.info("LOGGING STARTED")
     strat = run_strategy()
     value=strat.run()
+
+def TESTING(request):
+    return JsonResponse({"INSTANCE_COUNT":str(run_strategy.count)})
 
 
 t=threading.Thread(target=do_something)

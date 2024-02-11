@@ -20,3 +20,14 @@ INFO 2024-02-05 12:27:57,329 strategy 35507 6203731968 Traceback (most recent ca
          ^^^^^^^^^^^
 AttributeError: 'run_strategy' object has no attribute 'client'
 
+INFO 2024-02-11 12:21:57,489 strategy 24731 6197407744 Traceback (most recent call last):
+  File "/Users/sid/Desktop/algo-trading/PROFESSIONAL/BASE_DJANGO/datamanagement/helpful_scripts/strategy.py", line 206, in run
+    self.main()
+  File "/Users/sid/Desktop/algo-trading/PROFESSIONAL/BASE_DJANGO/datamanagement/helpful_scripts/strategy.py", line 187, in main
+    df=self.download_ohlc(ticker)
+       ^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/Users/sid/Desktop/algo-trading/PROFESSIONAL/BASE_DJANGO/datamanagement/helpful_scripts/strategy.py", line 99, in download_ohlc
+    data=self.client.fetch_ohlcv(instrument,timeframe=self.admin['time_frame'])
+         ^^^^^^^^^^^
+AttributeError: 'run_strategy' object has no attribute 'client'
+
