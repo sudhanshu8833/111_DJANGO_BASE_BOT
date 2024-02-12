@@ -13,6 +13,7 @@ import threading
 import json
 import certifi
 import ast
+import os
 
 import logging
 logging.getLogger("pymongo").setLevel(logging.WARNING)
@@ -22,9 +23,13 @@ error = logging.getLogger('error_log')
 
 from pymongo.mongo_client import MongoClient
 from pymongo.server_api import ServerApi
+
 data={}
-with open("background.json") as json_file:
+BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+file_path = os.path.join(BASE_DIR, 'background.json')
+with open(file_path) as json_file:
     data=json.load(json_file)
+
 
 client = MongoClient(data['mongo_uri'], server_api=ServerApi('1'),connect=False,tlsCAFile=certifi.where())
 database=client[data['database']]

@@ -89,10 +89,10 @@ DATABASES = {
 }
 
 # my scheduled job
+# ALL CRONJOBS is in UTC format
 CRONJOBS = [
-    ('*/1 * * * *', 'datamanagement.cron.my_scheduled_job')
+    ('30 14 * * *', 'datamanagement.cron.my_scheduled_job', '>> ' + os.path.join(BASE_DIR,'log/cron_debug.log' + ' 2>&1 '))
 ]
-
 # Password validation
 # https://docs.djangoproject.com/en/2.2/ref/settings/#auth-password-validators
 
