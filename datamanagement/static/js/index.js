@@ -20,6 +20,7 @@ function updateTable() {
 function updateTableContents(positions) {
     var tbody = $('#present_position_table');
     tbody.empty();
+    
 
     positions.forEach(function (pos, index) {
         var row = '<tr>' +
@@ -37,6 +38,8 @@ function updateTableContents(positions) {
         tbody.append(row);
     });
 }
+
+
 function updateClosedContents(positions) {
     var tbody = $('#closed_position_table');
     tbody.empty();

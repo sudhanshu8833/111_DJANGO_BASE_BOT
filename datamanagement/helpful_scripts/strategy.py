@@ -8,7 +8,7 @@ import certifi
 import os
 
 from datamanagement.models import *
-
+from django.conf import settings
 
 
 #CONFIGURATIONS
@@ -21,16 +21,12 @@ from pymongo.mongo_client import MongoClient
 from pymongo.server_api import ServerApi
 
 
-data={}
-BASE_DIR = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
-file_path = os.path.join(BASE_DIR, 'background.json')
-with open(file_path) as json_file:
-    data=json.load(json_file)
 
 
 
-client = MongoClient(data['mongo_uri'], server_api=ServerApi('1'),connect=False,tlsCAFile=certifi.where())
-database=client[data['database']]
+client = MongoClient(settings.RAN_ON, 27017)
+
+database=client['PROJECT']
 admin=database['admin']
 position=database['position']
 current_candles=database['candles']

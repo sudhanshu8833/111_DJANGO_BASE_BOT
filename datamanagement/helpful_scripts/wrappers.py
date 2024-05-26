@@ -36,3 +36,12 @@ def retry(times):
             return func(*args, **kwargs)
         return newfn
     return decorator
+
+
+def exception_handler(func):
+    def wrapper(*args, **kwargs):
+        try:
+            return func(*args, **kwargs)
+        except Exception as e:
+            error.info(traceback.format_exc())
+    return wrapper

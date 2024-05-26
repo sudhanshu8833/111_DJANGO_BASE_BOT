@@ -1,14 +1,23 @@
 version: '3'
 
 services:
+
+  db:
+    image: mongo
+    ports:
+      - "27017:27017"
+
   backend:
     build:
-      context: ./PROJECT
+      context: ..
+    image: MAIN_PROJECT
     command: gunicorn PROJECT.wsgi --bind 0.0.0.0:8000
     ports:
       - "8000:8000"
     volumes:
       - staticc:/django/static  # Mount the static files directory
+    depends_on:
+      - db
 
   nginx:
     image: nginx:latest
@@ -19,6 +28,9 @@ services:
       - staticc:/var/www/staticfiles  # Mount the static files directory
     depends_on:
       - backend
+      - db
+
 
 volumes:
   staticc:
+

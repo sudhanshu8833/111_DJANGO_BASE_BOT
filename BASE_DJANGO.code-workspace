@@ -1,11 +1,10 @@
 {
 	"folders": [
 		{
-			"path": "../BASE_DJANGO/"
+			"path": "."
 		},
 		{
-			"path": "../PROJECT65_options/"
-		},
-	],
-	"settings": {}
+			"path": "../PROJECT64_bybit"
+		}
+	]
 }

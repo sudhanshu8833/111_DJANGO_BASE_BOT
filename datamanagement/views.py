@@ -4,7 +4,7 @@ from django.contrib.auth import authenticate,  login, logout
 from django.contrib.auth.decorators import login_required
 from django.contrib import messages
 from django.http import JsonResponse
-
+from django.conf import settings
 
 from .helpful_scripts.strategy import *
 from .models import *
@@ -22,17 +22,10 @@ logger = logging.getLogger('dev_log')
 error = logging.getLogger('error_log')
 
 from pymongo.mongo_client import MongoClient
-from pymongo.server_api import ServerApi
 
-data={}
-BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-file_path = os.path.join(BASE_DIR, 'background.json')
-with open(file_path) as json_file:
-    data=json.load(json_file)
+client = MongoClient(settings.RAN_ON, 27017)
 
-
-client = MongoClient(data['mongo_uri'], server_api=ServerApi('1'),connect=False,tlsCAFile=certifi.where())
-database=client[data['database']]
+database=client['PROJECT']
 admin=database['admin']
 position=database['position']
 current_candles=database['candles']
