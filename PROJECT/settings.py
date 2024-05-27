@@ -12,6 +12,8 @@ https://docs.djangoproject.com/en/2.2/ref/settings/
 
 import os
 import logging
+from decouple import config
+
 # Build paths inside the project like this: os.path.join(BASE_DIR, ...)
 BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 # import django
@@ -24,10 +26,10 @@ BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 SECRET_KEY = '_k091si(bm@c$^rka3008*y&!ay(+(vv$bmb3r^2yy&a%b5y1w'
 
 # SECURITY WARNING: don't run with debug turned on in production!
-DEBUG = True
-RAN_ON ='localhost'
+DEBUG = config('DEBUG', default=False, cast=bool)
+RAN_ON =config('RAN_ON', default='local')
 
-ALLOWED_HOSTS = ["143.110.241.49", '127.0.0.1', 'localhost', "*"]
+ALLOWED_HOSTS = [config('IP_HOSTED',default="*"),'127.0.0.1', 'localhost', "*"]
 
 
 # Application definition
@@ -42,7 +44,8 @@ INSTALLED_APPS = [
     'django.contrib.messages',
     'django.contrib.staticfiles',
     'datamanagement',
-
+    'django_celery_beat',
+    'django_celery_results',
 
 ]
 
@@ -188,3 +191,5 @@ LOGGING = {
 
 
 # CELERY SETTINGS   
+CELERY_BROKER_URL = config('CELERY_BROKER_REDIS_URL', default='redis://localhost:6379')
+CELERY_BEAT_SCHEDULER = 'django_celery_beat.schedulers.DatabaseScheduler'
