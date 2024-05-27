@@ -8,7 +8,14 @@ services:
       - "27017:27017"
 
   redis:
-  
+    image: redis
+    restart: always
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis-data_a:/data
+    entrypoint: redis-server --appendonly yes
+
 
   backend:
     build:
@@ -21,6 +28,7 @@ services:
       - staticc:/django/static  # Mount the static files directory
     depends_on:
       - db
+      - redis
 
   nginx:
     image: nginx:latest
@@ -32,8 +40,9 @@ services:
     depends_on:
       - backend
       - db
+      - redis
 
 
 volumes:
   staticc:
-
+  redis-data_a:
