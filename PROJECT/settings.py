@@ -92,7 +92,7 @@ DATABASES = {
 }
 
 # my scheduled job
-# ALL CRONJOBS is in UTC format
+# ALL CRONJOBS is in UTC format (it depends on the server timezone, if it is in YTC format it will run in UTC)
 CRONJOBS = [
     ('30 14 * * *', 'datamanagement.cron.my_scheduled_job', '>> ' + os.path.join(BASE_DIR,'log/cron_debug.log' + ' 2>&1 '))
 ]
