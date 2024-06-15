@@ -25,7 +25,7 @@ services:
     ports:
       - "8000:8000"
     volumes:
-      - staticc:/django/static  # Mount the static files directory
+      - staticc:/django/EXTRAS/static  # Mount the static files directory
     depends_on:
       - db
       - redis

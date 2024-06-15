@@ -2,144 +2,268 @@
 from django.shortcuts import render,redirect
 from django.contrib.auth import authenticate,  login, logout
 from django.contrib.auth.decorators import login_required
+from django.views.decorators.csrf import csrf_exempt
 from django.contrib import messages
 from django.http import JsonResponse
 from django.conf import settings
 
-from .helpful_scripts.strategy import *
+from PROJECT.globals import *
 from .models import *
+from utils import (
+    validate_alerts,
+    validate_users,
+    validate_strategy,
+    create_order_entry,
+    create_order_exit
+)
 
 import threading
 import json
 import certifi
 import ast
 import os
-
-import logging
-logging.getLogger("pymongo").setLevel(logging.WARNING)
-logging.getLogger("urllib3").setLevel(logging.WARNING)
-logger = logging.getLogger('dev_log')
-error = logging.getLogger('error_log')
-
-from pymongo.mongo_client import MongoClient
-
-client = MongoClient(settings.RAN_ON, 27017)
-
-database=client['PROJECT']
-admin=database['admin']
-position=database['position']
-current_candles=database['candles']
+from bson import json_util
 
 
-def login_page(request):
-    return render(request, "login.html")
 
-def handleLogin(request):
+@csrf_exempt
+def create_order(request):
+    if request.method=="POST":
+        data=json.loads(request.body)
+        data=validate_alerts(**data)
 
-    if request.user.is_authenticated:
-        return redirect('/start_strategy')
-    if request.method == "POST":
-
-        loginusername = request.POST['username']
-        loginpassword = request.POST['password']
-        if loginusername=="bybit_bot" and loginpassword=="bot_to_trade":
-            user=User.objects.get(username=loginusername)
-            login(request, user)
-            return redirect("../start_strategy/")
+        response = None
+        if(data['entry']):
+            response=create_order_entry(data)
         else:
-            messages.error(request, "Invalid credentials! Please try again")
-            return redirect("/")
-    return redirect("/")
+            response=create_order_exit(data)
 
-def round_off(positions):
+        return JsonResponse(response)
+    return JsonResponse({"error":"send a valid request Method ..!!"})
 
-    for obj in positions:
-        for key in obj:
-            if isinstance(obj[key], float):
-                obj[key] = round(obj[key], 3)
 
-    return positions
+def get_positions_strategy(request):
 
-@login_required(login_url='')
-def handleLogout(request):
-    logout(request)
-    return redirect('/')
-
-@login_required(login_url='')
-def rest_update(request):
-    data={}
-    data['admin']=admin.find_one()
-    positions=list(position.find())
-    positions=round_off(positions)
-    data['candles_data']=current_candles.find_one()['data']
-    if data['admin']:
-        data['admin']['_id'] = str(data['admin']['_id'])
-    for pos in positions:
-        pos['_id'] = str(pos['_id'])
-    data['present_positions']=[]
-    data['closed_positions']=[]
-
-    for pos in positions:
-        if(pos['status']=="OPEN"):
-            data['present_positions'].append(pos)
-        else:
-            data['closed_positions'].append(pos)
-
-    return JsonResponse(data)
-
-@login_required(login_url='')
-def start_strategy(request):
-    data={}
-    data['admin']=admin.find_one()
-    positions=list(position.find())
-    data['present_positions']=[]
-    data['closed_positions']=[]
-
-    for pos in positions:
-        if(pos['status']=="OPEN"):
-            data['present_positions'].append(pos)
-        else:
-            data['closed_positions'].append(pos)
-
-    if request.method == "POST":
-        recieved_data=request.POST
-        recieved_data=recieved_data.copy()
-
-        if('status' not in recieved_data):
-            recieved_data['status']='off'
-        if('live' not in recieved_data):
-            recieved_data['live']='off'
-
-        params={
-            "api_key":recieved_data['api_key'],
-            "secret_key":recieved_data['secret_key'],
-            "investment":float(recieved_data['investment']),
-            "symbols":ast.literal_eval(recieved_data['symbols']),
-            "status":True if recieved_data['status']=='on' else False,
-            "live":True if recieved_data['live']=='on' else False,
-            "EMA_1_period":int(recieved_data['EMA_1_period']),
-            "EMA_2_period":int(recieved_data['EMA_2_period']),
-            "time_frame":recieved_data['time_frame'],
-            "stoploss":float(recieved_data['stoploss']),
-            "takeprofit":float(recieved_data['takeprofit'])
+    '''
+        REQUEST BODY -
+        {
+            strategy_id:strategy_id,
+            status:'OPEN'/'CLOSED'
         }
-        admin.update_one({},{"$set":params})
-        print(params)
-        data['admin']=admin.find_one()
-        positions=list(position.find())
+    '''
 
-        return render(request, "index.html",data)
-    return render(request, "index.html",data)
+    if request.method=="GET":
+        strategy_id=request.GET['strategy_id']
+        status=request.GET['status']
+        positions= strategy_positions.find({'strategy_id':strategy_id,'status':status})
+
+        positions = list(positions)
+        json_positions = json.loads(json_util.dumps(positions))
+        return JsonResponse({'positions': json_positions})
+    
+    return JsonResponse({'error':'send a valid request Method ..!!'})
+
+def get_positions_user(request):
+
+    '''
+        REQUEST BODY -
+        {   'username':username,
+            strategy_id:strategy_id,
+            status:'OPEN'/'CLOSED'
+        }
+    '''
+
+    if request.method=="GET":
+        username=request.GET['username']
+        status=request.GET['status']
+        positions= users_positions.find({'username':username,'status':status})
+
+        positions = list(positions)
+        json_positions = json.loads(json_util.dumps(positions))
+        return JsonResponse({'positions': json_positions})
+    
+@csrf_exempt
+def on_off_broker(request):
+    '''
+        REQUEST BODY -
+        {
+            username:
+            action:ON/OFF
+            broker:
+        }
+    '''
+    if request.method=="POST":
+        data=json.loads(request.body)
+        
+        users_data=users.find_one({'username':data['username']})
+
+        if data['action']=='ON':
+            users_data['brokers_subscribed'][data['broker']]['active']=True
+        else:
+            users_data['brokers_subscribed'][data['broker']]['active']=False
+
+        return JsonResponse({'message':'Broker status updated successfully'})
+    
+    return JsonResponse({'error':'send a valid request Method ..!!'})
+
+def get_strategies_subscribed(request):
+    '''
+        REQUEST BODY -
+        {
+            username:
+        }
+
+        Response -
+        {
+            strategies:[strategy_id1,strategy_id2,..]}
+    '''
+
+    if request.method=="GET":
+        username=request.GET['username']
+        user_data=users.find_one({'username':username})
+        validate_users(**user_data)
+        return JsonResponse({'strategies':user_data['subscriptions']})
+
+    return JsonResponse({'error':'send a valid request Method ..!!'})
+
+def get_users_subscribed(request):
+    '''
+        REQUEST BODY -
+        {
+            strategy_id:strategy_id
+        }
+
+        Response -
+        {
+            users:[username1,username2,..]
+        }
+
+    '''
+    if request.method=="GET":
+        strategy_id=request.GET['strategy_id']
+        strategy_data=strategy.find_one({'strategy_id':strategy_id})
+        validate_strategy(**strategy_data)
+        return JsonResponse({'users':strategy_data['subscribers']})
+    
+    return JsonResponse({'error':'send a valid request Method ..!!'})
+
+def get_pnls(request):
+    '''
+        REQUEST BODY -
+        {
+            username:
+        }
+
+        Response -
+        {
+            today:
+            weekly:
+            monthly:
+            yearly:
+        }
+    '''
+    if request.method=="GET":
+        username=request.GET['username']
+        user_data=users.find_one({'username':username})
+        validate_users(**user_data)
+        return JsonResponse(user_data['profits'])
+
+    return JsonResponse({'error':'send a valid request Method ..!!'})
+
+def get_strategy_orders(request):
+    '''
+        REQUEST BODY -
+        {
+            strategy_id:strategy_id
+        }
+
+    '''
+    if request.method=="GET":
+        strategy_id=request.GET['strategy_id']
+        strategy_o=strategy_orders.find({'strategy_id':strategy_id})
+        return JsonResponse({'orders':strategy_o})
+    
+    return JsonResponse({'error':'send a valid request Method ..!!'})
+
+def get_user_orders(request):
+    '''
+        REQUEST BODY -
+        {
+            username:
+        }
+    '''
+    if request.method=="GET":
+        username=request.GET['username']
+        users_o=users_orders.find({'username':username})
+        return JsonResponse({'orders':users_o})
+    
+    return JsonResponse({'error':'send a valid request Method ..!!'})
+
+@csrf_exempt
+def subscribe_strategy(request):
+    '''
+        REQUEST BODY -
+        {
+            username:
+            strategy_id:
+        }
+    '''
+
+    if request.method=="POST":
+        data=json.loads(request.body)
+        strategy_data=strategy.find_one({'strategy_id':data['strategy_id']})
+        validate_strategy(**strategy_data)
+        user_data=users.find_one({'username':data['username']})
+        validate_users(**user_data)
+        strategy.update_one({'strategy_id':data['strategy_id']},{'$push':{'subscribers':data['username']}})
+        users.update_one({'username':data['username']},{'$push':{'subscriptions':data['strategy_id']}})
+        return JsonResponse({'message':'Subscribed successfully'})
+
+    return JsonResponse({'error':'send a valid request Method ..!!'})
 
 
-def do_something():
-    logger.info("LOGGING STARTED")
-    strat = run_strategy()
-    value=strat.run()
+@csrf_exempt
+def unsubscribe_strategy(request):
+    '''
+        REQUEST BODY -
+        {
+            username:
+            strategy_id:
+        }
+    '''
 
-def TESTING(request):
-    return JsonResponse({"INSTANCE_COUNT":str(run_strategy.count)})
+    if request.method=="POST":
+        data=json.loads(request.body)
+        strategy_data=strategy.find_one({'strategy_id':data['strategy_id']})
+        validate_strategy(**strategy_data)
+        user_data=users.find_one({'username':data['username']})
+        validate_users(**user_data)
+        strategy.update_one({'strategy_id':data['strategy_id']},{'$pull':{'subscribers':data['username']}})
+        users.update_one({'username':data['username']},{'$pull':{'subscriptions':data['strategy_id']}})
 
+        return JsonResponse({'message':'Unsubscribed successfully'})
 
-# t=threading.Thread(target=do_something)
-# t.start()
+    return JsonResponse({'error':'send a valid request Method ..!!'})
+
+@csrf_exempt
+def add_credentials(request):
+    '''
+        REQUEST BODY -
+        {
+            username:
+            broker:
+            api_key:
+            secret_key:
+            access_token:
+        }
+    '''
+    if request.method=="POST":
+        data=json.loads(request.body)
+        user_data=users.find_one({'username':data['username']})
+        validate_users(**user_data)
+        data['active']=True
+        user_data['brokers_subscribed'][data['broker']]=data
+        users.update_one({'username':data['username']},{'$set':{'brokers_subscribed':user_data['brokers_subscribed']}})
+        return JsonResponse({'message':'Credentials added successfully'})
+    
+    return JsonResponse({'error':'send a valid request Method ..!!'})

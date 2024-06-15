@@ -23,7 +23,7 @@ BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 # See https://docs.djangoproject.com/en/2.2/howto/deployment/checklist/
 
 # SECURITY WARNING: keep the secret key used in production secret!
-SECRET_KEY = '_k091si(bm@c$^rka3008*y&!ay(+(vv$bmb3r^2yy&a%b5y1w'
+SECRET_KEY = config('SECRET_KEY', default='NA')
 
 # SECURITY WARNING: don't run with debug turned on in production!
 DEBUG = config('DEBUG', default=False, cast=bool)
@@ -46,7 +46,6 @@ INSTALLED_APPS = [
     'datamanagement',
     'django_celery_beat',
     'django_celery_results',
-
 ]
 
 MIDDLEWARE = [
@@ -94,7 +93,7 @@ DATABASES = {
 # my scheduled job
 # ALL CRONJOBS is in UTC format (it depends on the server timezone, if it is in YTC format it will run in UTC)
 CRONJOBS = [
-    ('30 14 * * *', 'datamanagement.cron.my_scheduled_job', '>> ' + os.path.join(BASE_DIR,'log/cron_debug.log' + ' 2>&1 '))
+    ('30 14 * * *', 'datamanagement.cron.my_scheduled_job', '>> ' + os.path.join(BASE_DIR,'EXTRAS/log/cron_debug.log' + ' 2>&1 '))
 ]
 # Password validation
 # https://docs.djangoproject.com/en/2.2/ref/settings/#auth-password-validators
@@ -134,7 +133,7 @@ USE_TZ = True
 
 STATIC_URL = '/static/'
 
-STATIC_ROOT = os.path.join(BASE_DIR, "static")
+STATIC_ROOT = os.path.join(BASE_DIR, "EXTRAS/static")
 
 
 LOGGING = {
@@ -159,14 +158,14 @@ LOGGING = {
         'info': {
             'level': 'INFO',
             'class': 'logging.FileHandler',
-            'filename': os.path.join(BASE_DIR, 'log/dev.log'),
+            'filename': os.path.join(BASE_DIR, 'EXTRAS/log/dev.log'),
             'formatter': 'verbose'
         },
 
         'error': {
             'level': 'INFO',
             'class': 'logging.FileHandler',
-            'filename': os.path.join(BASE_DIR, 'log/error.log'),
+            'filename': os.path.join(BASE_DIR, 'EXTRAS/log/error.log'),
             'formatter': 'verbose'
         }
 
